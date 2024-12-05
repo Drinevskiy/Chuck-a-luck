@@ -1,0 +1,43 @@
+﻿@page "/create"
+
+@inject NavigationManager NavigationManager
+@inject IGameService GameService
+
+<PageTitle>Create game</PageTitle>
+
+<link href="css/style.css" rel="stylesheet">
+
+<div class="battlefield">
+	<div class="welcome-text">
+		<p>Создать игру</p>
+	</div>
+
+	<div class="start-page-buttons">
+		<input class="form-control" type="text" placeholder="Game Name" @bind="GameName">
+		<input class="form-control" type="text" placeholder="Username" @bind="Username">
+		<input type="button" class="start_button" @onclick="(async () => await Create())" value="Создать">
+	</div>
+</div>
+
+@code
+{
+	private string GameName { get; set; } = "";
+	private string Username { get; set; } = "";
+
+	protected async override Task OnInitializedAsync()
+	{
+		GameService.CreateConnection("Receive", () => { });
+
+		await GameService.ConnectToHub();
+	}
+
+	private async Task Create()
+	{
+		bool result = await GameService.CreateGame(GameName, Username);
+
+		if (result)
+		{
+			NavigationManager.NavigateTo($"/waiting?GameName={GameName}&Username={Username}");
+		}
+	}
+}

@@ -28,16 +28,16 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/Counter.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
+[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/CreateGame.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ3JlYXRlR2FtZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/Home.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSG9tZS5yYXpvcg==
+[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/JoinGame.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSm9pbkdhbWUucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/Weather.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcV2VhdGhlci5yYXpvcg==
+[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/Waiting.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcV2FpdGluZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/_Imports.razor]
@@ -51,3 +51,7 @@ build_metadata.AdditionalFiles.CssScope = b-tmopy668it
 [D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Layout/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XE5hdk1lbnUucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-9qkkwgv1yd
+
+[D:/Study/5 semestr/SPPR/Chuck-A-Luck/Client/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSG9tZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-mlpx6l4j4s

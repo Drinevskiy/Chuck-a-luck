@@ -1,0 +1,43 @@
+﻿@page "/join"
+
+@inject NavigationManager NavigationManager
+@inject IGameService GameService
+
+<PageTitle>Join game</PageTitle>
+
+<link href="css/style.css" rel="stylesheet">
+
+<div class="battlefield">
+	<div class="welcome-text">
+		<p>Присоединиться к игре</p>
+	</div>
+
+	<div class="start-page-buttons">
+		<input class="form-control" type="text" placeholder="Game Name" @bind="GameName">
+		<input class="form-control" type="text" placeholder="Username" @bind="Username">
+		<input type="button" class="start_button" @onclick="(async () => await Join())" value="Присоединиться">
+	</div>
+</div>
+
+@code
+{
+	private string GameName { get; set; } = "";
+	private string Username { get; set; } = "";
+
+	protected async override Task OnInitializedAsync()
+	{
+		GameService.CreateConnection("Receive", () => { });
+
+		await GameService.ConnectToHub();
+	}
+
+	private async Task Join()
+	{
+		bool result = await GameService.JoinGame(GameName, Username);
+
+		if (result)
+		{
+			NavigationManager.NavigateTo($"/arrangement?GameName={GameName}&Username={Username}");
+		}
+	}
+}
