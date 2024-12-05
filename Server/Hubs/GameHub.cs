@@ -1,170 +1,122 @@
 using Microsoft.AspNetCore.SignalR;
+using Server.Interfaces;
+using Server.Logic;
+using Server.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Data.Common;
 
 namespace Server.Hubs
 {
-    public class GameHub : Hub
+    public class GameHub : Hub<IClient>
     {
-        private static readonly Dictionary<string, List<Tuple<string, string, string?>>> GameGroups = new();
-        private static readonly Dictionary<string, string> FieldContent = new();
-        private static readonly Dictionary<string, string> GameMove = new();
+        // Хранение игр (группы игроков)
+        private static ConcurrentDictionary<string, List<Player>> _gameGroups = new ConcurrentDictionary<string, List<Player>>();
+        private GameLogic _gameLogic = new GameLogic();
 
-        public async Task CreateGame(string game, string username)
+        // Подключение к игре
+        public async Task JoinGame(string groupName, string playerName)
         {
-            if (GameGroups.ContainsKey(game))
+            // Добавить игрока в группу
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+            // Добавить игрока в список игроков группы
+            var player = new Player
             {
-                throw new HubException("This game already exists!");
-            }
+                ConnectionId = Context.ConnectionId,
+                Name = playerName
+            };
 
-            GameGroups.Add(game, new List<Tuple<string, string, string?>>());
+            _gameGroups.AddOrUpdate(groupName, new List<Player> { player }, (key, players) =>
+            {
+                players.Add(player);
+                return players;
+            });
 
-            await JoinGame(game, username);
+            // Уведомить группу
+            await Clients.Group(groupName).PlayerJoined(playerName);
         }
 
-        public async Task JoinGame(string game, string username)
+        // Сделать ставку
+        public async Task PlaceBet(string groupName, BetType betType, int betNumber, int betAmount)
         {
-            if (!GameGroups.ContainsKey(game))
+            // Найти группу игроков
+            if (_gameGroups.TryGetValue(groupName, out var players))
             {
-                throw new HubException("This game doesn't exists!");
-            }
-
-            if (GameGroups[game].Count > 1)
-            {
-                throw new HubException("This game is full!");
-            }
-
-            if (GameGroups[game].FindIndex(tuple => tuple.Item2 == username) != -1)
-            {
-                throw new HubException("User with this name already exists");
-            }
-
-            GameGroups[game].Add(new Tuple<string, string, string?>(Context.ConnectionId, username, null));
-
-            try
-            {
-                await Groups.AddToGroupAsync(Context.ConnectionId, game);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-
-            try
-            {
-                await Clients.Group(game).SendAsync("Receive");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-
-            if (GameGroups[game].Count == 2)
-            {
-                await Clients.Group(game).SendAsync("Notify");
-            }
-        }
-
-        public async Task StartGame(string game, string username, string field)
-        {
-            int index = GameGroups[game].FindIndex(tuple => tuple.Item2 == username);
-
-            if (index != -1)
-            {
-                GameGroups[game][index] = new Tuple<string, string, string?>(Context.ConnectionId, username, field);
-            }
-
-            try
-            {
-                if (GameGroups[game][0].Item3 == null || GameGroups[game][1].Item3 == null)
+                // Найти игрока
+                var player = players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+                if (player != null)
                 {
-                    await Clients.Client(Context.ConnectionId).SendAsync("Wait");
-                }
-                else
-                {
-                    await Clients.Group(game).SendAsync("Start");
+                    // Проверить минимальную ставку
+                    if (betAmount < 10)
+                    {
+                        await Clients.Caller.ErrorMessage("Минимальная ставка — 10.");
+                        return;
+                    }
+
+                    // Проверить, хватает ли баланса для ставки
+                    if (player.Balance < betAmount)
+                    {
+                        await Clients.Caller.ErrorMessage("Недостаточно средств для ставки.");
+                        return;
+                    }
+
+                    // Обновить данные о ставке
+                    player.BetType = betType;
+                    player.BetNumber = betNumber;
+                    player.BetAmount = betAmount;
+                    player.Balance -= betAmount; // Списать ставку с баланса
+
+                    await Clients.Caller.BetPlaced(betType, betNumber, betAmount, player.Balance);
                 }
             }
-            catch (Exception e)
+        }
+
+        // Запустить игру
+        public async Task StartGame(string groupName)
+        {
+            if (_gameGroups.TryGetValue(groupName, out var players))
             {
-                await Console.Out.WriteLineAsync($"{e.Message}");
+                // Запустить игру
+                var result = _gameLogic.PlayGame(players);
+
+                // Проверить победителей и проигравших
+                var removedPlayers = new List<Player>();
+                foreach (var player in players)
+                {
+                    if (result.PlayerResults.TryGetValue(player.ConnectionId, out var playerResult))
+                    {
+                        // Проверить, выиграл ли игрок
+                        if (player.Balance >= 500)
+                        {
+                            await Clients.Client(player.ConnectionId).ErrorMessage("Вы выиграли игру, ваш баланс: " + player.Balance);
+                            removedPlayers.Add(player);
+                        }
+                        // Проверить, проиграл ли игрок
+                        else if (player.Balance <= 0)
+                        {
+                            await Clients.Client(player.ConnectionId).ErrorMessage("Вы проиграли игру, ваш баланс: 0.");
+                            removedPlayers.Add(player);
+                        }
+                        else
+                        {
+                            await Clients.Client(player.ConnectionId).GameResult(result.DiceRolls, playerResult, player.Balance);
+                        }
+                    }
+                }
+
+                // Удалить проигравших и победителей из группы
+                foreach (var player in removedPlayers)
+                {
+                    players.Remove(player);
+                }
+
+                // Если все игроки покинули группу, удалить её
+                if (!players.Any())
+                {
+                    _gameGroups.TryRemove(groupName, out _);
+                }
             }
-        }
-
-        public string GetOpponentField(string game, string username)
-        {
-            int index = GameGroups[game].FindIndex(tuple => tuple.Item2 != username);
-
-            if (index != -1)
-            {
-                return GameGroups[game][index].Item3!;
-            }
-            else
-            {
-                return "";
-            }
-        }
-
-        public async Task Move(string game, string username, int x, int y, bool shot)
-        {
-            int index = GameGroups[game].FindIndex(tuple => tuple.Item2 != username);
-
-            if (index != -1)
-            {
-                await Clients.Client(GameGroups[game][index].Item1).SendAsync("GetMove", x, y, shot);
-            }
-
-            if (!shot)
-            {
-                await Clients.Group(game).SendAsync("Change");
-            }
-        }
-
-        public string GetContent(string username)
-        {
-            return FieldContent[username];
-        }
-
-        public void AddContent(string username, string content)
-        {
-            FieldContent.Add(username, content);
-        }
-
-        public string GetMove(string game)
-        {
-            return GameMove[game];
-        }
-        
-        public void AddMove(string game, string username)
-        {
-            if (!GameMove.ContainsKey(game))
-            {
-                GameMove.Add(game, username);
-            }
-            else
-            {
-                GameMove[game] = username;
-            }
-        }
-
-        public async Task EndGame(string game, string username)
-        {
-            await Clients.Group(game).SendAsync("Finish", username);
-        }
-
-        public async Task DeleteGame(string game)
-        {
-            await Clients.Group(game).SendAsync("End");
-
-
-            FieldContent.Remove(GameGroups[game][0].Item2);
-            FieldContent.Remove(GameGroups[game][1].Item2);
-
-            await Groups.RemoveFromGroupAsync(GameGroups[game][0].Item1, game);
-            await Groups.RemoveFromGroupAsync(GameGroups[game][1].Item1, game);
-
-            GameMove.Remove(game);
-            GameGroups.Remove(game);
         }
     }
 }

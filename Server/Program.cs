@@ -1,15 +1,19 @@
-namespace Server
-{
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
-            var app = builder.Build();
+using Server.Hubs;
 
-            app.MapGet("/", () => "Hello World!");
+var builder = WebApplication.CreateBuilder(args);
 
-            app.Run();
-        }
-    }
-}
+builder.Services.AddSignalR();
+builder.Services.AddCors();
+
+var app = builder.Build();
+
+app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyHeader());
+
+app.UseHttpsRedirection();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapHub<GameHub>("/gamehub");
+
+app.Run();
