@@ -1,0 +1,48 @@
+﻿@page "/waiting"
+
+@inject NavigationManager NavigationManager
+@inject IGameService GameService
+
+@implements IDisposable
+
+
+<PageTitle>Waiting</PageTitle>
+
+<div class="container" style="text-align: center; margin-top: 50px;">
+	<h1>Ожидание...</h1>
+</div>
+
+@code
+{
+	[SupplyParameterFromQuery]
+	[Parameter]
+	public string GameId { get; set; } = "";
+
+	[SupplyParameterFromQuery]
+	[Parameter]
+	public string Username { get; set; } = "";
+
+	private IDisposable? _notify;
+	private IDisposable? _start;
+
+	protected async override Task OnInitializedAsync()
+	{
+
+		await GameService.ConnectToHub();
+
+		_notify = GameService.CreateConnection("Notify", () =>
+		{
+			NavigationManager.NavigateTo($"/arrangement?GameId={GameId}&Username={Username}");
+		});
+		_start = GameService.CreateConnection("Start", () =>
+		{
+			NavigationManager.NavigateTo($"/play?GameId={GameId}&Username={Username}");
+		});
+	}
+
+	public void Dispose()
+	{
+		_notify?.Dispose();
+		_start?.Dispose();
+	}
+}
