@@ -1,117 +1,153 @@
 using Microsoft.AspNetCore.SignalR;
-using Server.Interfaces;
 using Server.Logic;
 using Server.Models;
 using System;
 using System.Collections.Concurrent;
-using System.Data.Common;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Server.Hubs
 {
-    public class GameHub : Hub<IClient>
+    public class GameHub : Hub
     {
         // Хранение игр (группы игроков)
         private static ConcurrentDictionary<string, List<Player>> _gameGroups = new ConcurrentDictionary<string, List<Player>>();
         private GameLogic _gameLogic = new GameLogic();
 
-        // Подключение к игре
-        public async Task JoinGame(string groupName, string playerName)
+        public async Task CreateGame(string groupName, string playerName)
         {
-            // Добавить игрока в группу
-            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            if (_gameGroups.ContainsKey(groupName))
+            {
+                await Clients.Caller.SendAsync("ErrorMessage", $"Комната с именем '{groupName}' уже существует.");
+                return;
+            }
 
-            // Добавить игрока в список игроков группы
             var player = new Player
             {
                 ConnectionId = Context.ConnectionId,
                 Name = playerName
             };
 
-            _gameGroups.AddOrUpdate(groupName, new List<Player> { player }, (key, players) =>
-            {
-                players.Add(player);
-                return players;
-            });
+            _gameGroups[groupName] = new List<Player> { player };
 
-            // Уведомить группу
-            await Clients.Group(groupName).PlayerJoined(playerName);
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         }
 
-        // Сделать ставку
-        public async Task PlaceBet(string groupName, BetType betType, int betNumber, int betAmount)
+        public async Task JoinGame(string groupName, string playerName)
         {
-            // Найти группу игроков
+            if (!_gameGroups.ContainsKey(groupName))
+            {
+                await Clients.Caller.SendAsync("ErrorMessage", $"Комната с именем '{groupName}' не найдена.");
+                return;
+            }
+
+            if (_gameGroups[groupName].Count >= 2)
+            {
+                await Clients.Caller.SendAsync("ErrorMessage", $"Комната '{groupName}' уже заполнена.");
+                return;
+            }
+
+            var player = new Player
+            {
+                ConnectionId = Context.ConnectionId,
+                Name = playerName
+            };
+
+            _gameGroups[groupName].Add(player);
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+
+            if (_gameGroups[groupName].Count == 2)
+            {
+                await Clients.Group(groupName).SendAsync("Start");
+            }
+        }
+
+        public Task<List<Player>> GetPlayersInGroup(string groupName)
+        {
             if (_gameGroups.TryGetValue(groupName, out var players))
             {
-                // Найти игрока
+                return Task.FromResult(players);
+            }
+
+            return Task.FromResult(new List<Player>());
+        }
+
+        public async Task PlaceBet(string groupName, BetType betType, int betNumber, int betAmount)
+        {
+            if (_gameGroups.TryGetValue(groupName, out var players))
+            {
                 var player = players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
                 if (player != null)
                 {
-                    // Проверить минимальную ставку
                     if (betAmount < 10)
                     {
-                        await Clients.Caller.ErrorMessage("Минимальная ставка — 10.");
+                        await Clients.Caller.SendAsync("ErrorMessage", "Минимальная ставка — 10.");
                         return;
                     }
 
-                    // Проверить, хватает ли баланса для ставки
                     if (player.Balance < betAmount)
                     {
-                        await Clients.Caller.ErrorMessage("Недостаточно средств для ставки.");
+                        await Clients.Caller.SendAsync("ErrorMessage", "Недостаточно средств для ставки.");
                         return;
                     }
 
-                    // Обновить данные о ставке
                     player.BetType = betType;
                     player.BetNumber = betNumber;
                     player.BetAmount = betAmount;
-                    player.Balance -= betAmount; // Списать ставку с баланса
+                    player.Balance -= betAmount;
 
-                    await Clients.Caller.BetPlaced(betType, betNumber, betAmount, player.Balance);
+                    await Clients.Group(groupName).SendAsync("PlaceBet", player);
                 }
             }
         }
 
-        // Запустить игру
         public async Task StartGame(string groupName)
         {
             if (_gameGroups.TryGetValue(groupName, out var players))
             {
-                // Запустить игру
                 var result = _gameLogic.PlayGame(players);
 
-                // Проверить победителей и проигравших
+                var diceRolls = result.DiceRolls; // Assuming DiceRolls is a suitable type for serialization
+                await Clients.Group(groupName).SendAsync("DiceRollResults", diceRolls);
+
+
                 var removedPlayers = new List<Player>();
                 foreach (var player in players)
                 {
-                    if (result.PlayerResults.TryGetValue(player.ConnectionId, out var playerResult))
+                    if (result.PlayerResults.TryGetValue(player.ConnectionId, out var payout))
                     {
-                        // Проверить, выиграл ли игрок
+                        player.BetType = BetType.Number;
+                        player.BetAmount = 10;
+                        player.BetNumber = 1;
+
                         if (player.Balance >= 500)
                         {
-                            await Clients.Client(player.ConnectionId).ErrorMessage("Вы выиграли игру, ваш баланс: " + player.Balance);
+                            await Clients.Client(player.ConnectionId).SendAsync("GameResult", player);
+                            await Clients.Client(player.ConnectionId).SendAsync("ErrorMessage", "Вы выиграли игру, ваш баланс: " + player.Balance);
                             removedPlayers.Add(player);
                         }
-                        // Проверить, проиграл ли игрок
                         else if (player.Balance <= 0)
                         {
-                            await Clients.Client(player.ConnectionId).ErrorMessage("Вы проиграли игру, ваш баланс: 0.");
+                            await Clients.Client(player.ConnectionId).SendAsync("GameResult", player);
+                            await Clients.Client(player.ConnectionId).SendAsync("ErrorMessage", "Вы проиграли игру, ваш баланс: 0.");
                             removedPlayers.Add(player);
                         }
                         else
                         {
-                            await Clients.Client(player.ConnectionId).GameResult(result.DiceRolls, playerResult, player.Balance);
+                            await Clients.Client(player.ConnectionId).SendAsync("GameResult", player);
                         }
                     }
                 }
 
-                // Удалить проигравших и победителей из группы
                 foreach (var player in removedPlayers)
                 {
                     players.Remove(player);
                 }
 
-                // Если все игроки покинули группу, удалить её
                 if (!players.Any())
                 {
                     _gameGroups.TryRemove(groupName, out _);
