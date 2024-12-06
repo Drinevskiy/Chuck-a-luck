@@ -30,7 +30,7 @@ namespace Server.Logic
                     case BetType.Number:
                         // Ставка на число
                         int matches = diceRolls.Count(d => d == player.BetNumber);
-                        payout = matches > 0 ? player.BetAmount * matches : -player.BetAmount;
+                        payout = matches > 0 ? player.BetAmount * matches : 0;
                         break;
 
                     case BetType.Small:
