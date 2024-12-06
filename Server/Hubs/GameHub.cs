@@ -93,6 +93,7 @@ namespace Server.Hubs
         {
             if (_gameGroups.TryGetValue(groupName, out var players))
             {
+                // Найти текущего игрока
                 var player = players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
                 if (player != null)
                 {
@@ -108,16 +109,22 @@ namespace Server.Hubs
                         return;
                     }
 
+                    // Обновляем данные о ставке игрока
                     player.BetType = betType;
                     player.BetNumber = betNumber;
                     player.BetAmount = betAmount;
                     player.Balance -= betAmount;
 
-                    await Clients.Group(groupName).SendAsync("PlaceBet", player);
+                    // Найти соперника
+                    var opponent = players.FirstOrDefault(p => p.ConnectionId != Context.ConnectionId);
+                    if (opponent != null)
+                    {
+                        // Отправить информацию о ставке только сопернику
+                        await Clients.Client(opponent.ConnectionId).SendAsync("PlaceBet", player);
+                    }
                 }
             }
         }
-
         public async Task StartGame(string groupName)
         {
             if (_gameGroups.TryGetValue(groupName, out var players))
