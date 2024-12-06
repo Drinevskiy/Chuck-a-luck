@@ -8,7 +8,7 @@
 <h3>Chuck-a-Luck</h3>
 
 
-@if (!isConnected)
+@if (isConnected)
 {   
     <div class="my-row">
         <div class="game-container">
@@ -98,7 +98,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {   
-        var users = await GameService.GetUsersInfo(Username);
+        var users = await GameService.GetUsersInfo(GameName);
         player = users[0];
         opponent = users[1];
         GameService.CreateConnection("PlaceBet", (Player opp) => {
