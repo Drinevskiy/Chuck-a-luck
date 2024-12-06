@@ -96,6 +96,7 @@ else
     private string gameStatus = "Ожидание ставок...";
     private bool isConnected = false;
     private List<int> dices = [ 1, 1, 1 ];
+    private TaskCompletionSource<bool> betPlacedTaskSource;
 
     protected override async Task OnInitializedAsync()
     {   
@@ -105,6 +106,7 @@ else
         Console.WriteLine(player.Name);
         Console.WriteLine(opponent.Name);
         GameService.CreateConnection("PlaceBetOpponent", (Player opp) => {
+            Console.WriteLine(opp.Name);
             Console.WriteLine(opp.Name);
             opponent = opp;
             isOpponentBet = true;
@@ -118,14 +120,17 @@ else
             isCurrentBet = true;
             gameStatus = "Ставка сделана. Ожидание результатов...";
             StateHasChanged();
+            betPlacedTaskSource?.SetResult(true);
         });
 
-        GameService.CreateConnection("GameResult", async () =>
+        GameService.CreateConnection("GameResult", async (Player pl) =>
         {   
             var users = await GameService.GetUsersInfo(GameName);
             player = users[0];
             opponent = users[1];
+            gameStatus = "Ожидание ставок...";
             isOpponentBet = false;
+            isCurrentBet = false;
             StateHasChanged();
         });
 
@@ -166,34 +171,29 @@ else
     {
         if (CanPlaceBet())
         {
-            var betType = BetType.Number;
-            if (currentBetType == "Number")
+            betPlacedTaskSource = new TaskCompletionSource<bool>();
+            var betType = currentBetType switch
             {
-                betType = BetType.Number;
-            }
-            else if (currentBetType == "Small")
-            {
-                betType = BetType.Small;
-            }
-            else if (currentBetType == "Big")
-            {
-                betType = BetType.Big;
-            }
-            else if (currentBetType == "Triple")
-            {
-                betType = BetType.Triple;
-            }
+                "Number" => BetType.Number,
+                "Small" => BetType.Small,
+                "Big" => BetType.Big,
+                "Triple" => BetType.Triple,
+                _ => BetType.Number
+            };
             Console.WriteLine("Текущая ставка " + player.Name + ": " + currentBetAmount);
             await GameService.PlaceBet(GameName, betType, selectedNumber, currentBetAmount);
+            await betPlacedTaskSource.Task;
+            Console.WriteLine("Соперник поставил " + isOpponentBet);
+            Console.WriteLine("Текущий поставил" + isCurrentBet);
             if(isOpponentBet && isCurrentBet){
                 await GameService.StartGame(GameName);
                 // var users = await GameService.GetUsersInfo(GameName);
                 // player = users[0];
                 // opponent = users[1];
                 // gameStatus = "Ставка сделана. Ожидание результатов...";
-                gameStatus = "Ожидание ставок...";
-                isOpponentBet = false;
-                isCurrentBet = false;
+                // gameStatus = "Ожидание ставок...";
+                // isOpponentBet = false;
+                // isCurrentBet = false;
             }
             StateHasChanged();
         }
