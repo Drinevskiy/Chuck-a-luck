@@ -1,0 +1,175 @@
+﻿@page "/chuck-a-luck"
+@using Microsoft.AspNetCore.SignalR.Client
+
+@inject NavigationManager NavigationManager
+@inject IGameService GameService
+@inject IJSRuntime JSRuntime
+
+<h3>Chuck-a-Luck</h3>
+
+
+@if (!isConnected)
+{   
+    <div class="my-row">
+        <div class="game-container">
+            <div>
+                <div class="player-info">
+                    <h4>@player.Name</h4>
+                    <p>Баланс: @player.Balance</p>
+                    <p>Текущая ставка: @player.BetType @(player.BetType is BetType.Number ? $"({player.BetNumber})" : "")</p>
+                    <p>Размер ставки: @player.BetAmount</p>
+                </div>
+
+                <div class="opponent-info">
+                    <h4>@opponent.Name</h4>
+                    <p>Баланс: @opponent.Balance</p>
+                    <p>Текущая ставка: @opponent.BetType @(opponent.BetType is BetType.Number ? $"({opponent.BetNumber})" : "")</p>
+                    <p>Размер ставки: @opponent.BetAmount</p>
+                </div>
+            </div>
+            <p>@gameStatus</p>
+        </div>
+
+        <div class="betting-section">
+            <h4>Сделать ставку</h4>
+            <div>
+                <input type="radio" id="number" name="betType" value="Number" checked @onchange="() => SelectBet('N')" />
+                <label for="number" title="Угадано одно число - выигрыш х1. Угадано два числа - выигрыш х2.">Ставка на число</label>
+                @if (currentBetType == "Number")
+                {
+                    @* <div> *@
+                    @* <label for="betNumber">Выберите число (1–6):</label> *@
+                    <input type="number" id="betNumber" min="1" max="6" @bind="selectedNumber" />
+                    @* </div> *@
+                }
+            </div>
+            <div>
+                <input type="radio" id="small" name="betType" value="Small" @onchange="() => SelectBet('S')" />
+                <label for="small">Малые</label>
+            </div>
+            <div>
+                <input type="radio" id="big" name="betType" value="Big" @onchange="() => SelectBet('B')" />
+                <label for="big">Большие</label>
+            </div>
+            <div>
+                <input type="radio" id="triple" name="betType" value="Triple" @onchange="() => SelectBet('T')" />
+                <label for="triple">Тройка</label>
+            </div>
+
+
+
+            <div>
+                <label for="betAmount">Размер ставки:</label>
+                <input type="number" id="betAmount" min="10" step="10" @bind="currentBetAmount" />
+            </div>
+
+            <button @onclick="PlaceBet" disabled="@(!CanPlaceBet())">Сделать ставку</button>
+        </div>
+    </div>
+    <div class="dice-container" @onclick="RollDice">
+        <div class="dice" style="animation-delay: 0s;">@dice1</div>
+        <div class="dice" style="animation-delay: 0.1s;">@dice2</div>
+        <div class="dice" style="animation-delay: 0.2s;">@dice3</div>
+    </div>
+}
+else
+{
+    <p>Подключение к серверу...</p>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    [Parameter]
+    public string GameName { get; set; } = "";
+
+    [SupplyParameterFromQuery]
+    [Parameter]
+    public string Username { get; set; } = "";
+
+    private HubConnection? hubConnection;
+    private Player player = null;
+    private Player opponent = null;
+    private int playerBalance = 100;
+    private int opponentBalance = 100;
+    private string currentBetType = "Number";
+    private string opponentCurrentBetType = string.Empty;
+    private int currentBetAmount = 0;
+    private int opponentBetAmount = 0;
+    private int selectedNumber = 0;
+    private string gameStatus = "Ожидание ставок...";
+    private bool isConnected = false;
+    private int dice1 = 1, dice2 = 1, dice3 = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GameService.GetUserInfo(Username);
+        hubConnection.On<int, string, int>("ReceiveOpponentBet", (balance, betType, betAmount) =>
+        {
+            opponentBalance = balance;
+            opponentCurrentBetType = betType;
+            opponentBetAmount = betAmount;
+            StateHasChanged();
+        });
+
+        hubConnection.On<string>("ReceiveGameStatus", (status) =>
+        {
+            gameStatus = status;
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+        isConnected = true;
+    }
+
+    private void SelectBet(char betType)
+    {
+        if (betType == 'N') { 
+            currentBetType = "Number";
+        }
+        else if (betType == 'S') { 
+            currentBetType = "Small";
+        }
+        else if (betType == 'B') { 
+            currentBetType = "Big";
+        }
+        else if (betType == 'T') {
+            currentBetType = "Triple";
+        }
+    }
+
+    private bool CanPlaceBet()
+    {
+        return playerBalance >= currentBetAmount && currentBetAmount >= 10;
+    }
+
+    private async Task PlaceBet()
+    {
+        if (CanPlaceBet())
+        {
+            playerBalance -= currentBetAmount;
+
+            // Отправляем данные о ставке на сервер
+            await hubConnection!.SendAsync("PlaceBet", playerBalance, currentBetType, currentBetAmount, selectedNumber);
+
+            gameStatus = "Ставка сделана. Ожидание результатов...";
+            StateHasChanged();
+        }
+    }
+
+    private void RollDice()
+    {
+        Random rand = new Random();
+        dice1 = rand.Next(1, 7);
+        dice2 = rand.Next(1, 7);
+        dice3 = rand.Next(1, 7);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

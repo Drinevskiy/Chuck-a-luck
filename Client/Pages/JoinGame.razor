@@ -3,11 +3,11 @@
 @inject NavigationManager NavigationManager
 @inject IGameService GameService
 
-<PageTitle>Join game</PageTitle>
+<PageTitle>Присоединиться</PageTitle>
 
 <link href="css/style.css" rel="stylesheet">
 
-<div class="battlefield">
+<div class="menu">
 	<div class="welcome-text">
 		<p>Присоединиться к игре</p>
 	</div>
@@ -37,7 +37,7 @@
 
 		if (result)
 		{
-			NavigationManager.NavigateTo($"/arrangement?GameName={GameName}&Username={Username}");
+			NavigationManager.NavigateTo($"/chuck-a-luck?GameName={GameName}&Username={Username}");
 		}
 	}
 }

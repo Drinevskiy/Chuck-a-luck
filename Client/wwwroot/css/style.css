@@ -1,0 +1,76 @@
+﻿* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+div,
+span,
+h1,
+h2,
+p,
+a,
+img,
+strong,
+ul,
+li,
+button,
+footer,
+header {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    vertical-align: baseline;
+    position: relative;
+}
+
+*,
+:after,
+:before {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+a,
+button,
+div {
+    outline: none;
+}
+
+ul {
+    list-style: none;
+}
+
+img {
+    border: none;
+}
+
+html,
+body,
+.wrap {
+    height: 100%;
+}
+
+article {
+    padding: 0 !important;
+}
+
+.menu {
+    width: 100%;
+    height: 700px;
+    margin: 0 auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.welcome-text {
+    font-family: 'Georgia', serif;
+    font-size: 60px;
+    text-align: center;
+    color: #fff; /* Цвет текста */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Тень для текста */
+    margin-bottom: 40px; /* Отступ снизу */
+}

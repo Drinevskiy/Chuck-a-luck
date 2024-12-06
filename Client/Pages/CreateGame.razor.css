@@ -1,0 +1,46 @@
+﻿p {
+    margin-bottom: 10px;
+}
+
+.start-page-buttons {
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Отступы между кнопками */
+}
+
+.form-control {
+    height: 60px;
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #ccc; /* Светлая граница */
+    font-size: 18px;
+    font-family: 'Arial', sans-serif;
+    transition: border-color 0.3s; /* Плавный переход границы */
+}
+
+    .form-control:focus {
+        border-color: royalblue; /* Изменение цвета границы при фокусе */
+        outline: none; /* Убираем стандартный контур */
+    }
+
+.start_button {
+    height: 70px;
+    width: 100%;
+    background-color: lightblue;
+    color: black;
+    border: none; /* Убираем стандартные границы */
+    border-radius: 25px; /* Увеличиваем радиус закругления */
+    font-size: 22px;
+    font-family: 'Arial', sans-serif;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Тень для кнопок */
+    transition: background-color 0.3s, transform 0.3s; /* Плавный переход */
+    cursor: pointer; /* Указатель при наведении */
+}
+
+    .start_button:hover {
+        background-color: royalblue;
+/*        transform: translateY(-10px) scale(1.05);*/
+        color: whitesmoke;
+    }
