@@ -41,7 +41,7 @@ namespace Server.Logic
                         }
                         else
                         {
-                            payout = -player.BetAmount;
+                            payout = 0;
                         }
                         break;
 
@@ -53,7 +53,7 @@ namespace Server.Logic
                         }
                         else
                         {
-                            payout = -player.BetAmount;
+                            payout = 0;
                         }
                         break;
 
@@ -65,7 +65,7 @@ namespace Server.Logic
                         }
                         else
                         {
-                            payout = -player.BetAmount;
+                            payout = 0;
                         }
                         break;
                 }
