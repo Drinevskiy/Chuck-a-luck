@@ -1,9 +1,11 @@
 ﻿@page "/chuck-a-luck"
 @using Microsoft.AspNetCore.SignalR.Client
-
+@implements IAsyncDisposable
 @inject NavigationManager NavigationManager
 @inject IGameService GameService
 @inject IJSRuntime JSRuntime
+
+<PageTitle>Игра</PageTitle>
 
 <h3>Chuck-a-Luck</h3>
 
@@ -37,10 +39,7 @@
                 <label for="number" title="Угадано одно число - выигрыш х1. Угадано два числа - выигрыш х2.">Ставка на число</label>
                 @if (currentBetType == "Number")
                 {
-                    @* <div> *@
-                    @* <label for="betNumber">Выберите число (1–6):</label> *@
                     <input type="number" id="betNumber" min="1" max="6" @bind="selectedNumber" />
-                    @* </div> *@
                 }
             </div>
             <div>
@@ -53,17 +52,15 @@
             </div>
             <div>
                 <input type="radio" id="triple" name="betType" value="Triple" @onchange="() => SelectBet('T')" />
-                <label for="triple" title="Три одинаковые кости - выигрыш х1.">Тройка</label>
+                <label for="triple" title="Три одинаковые кости - выигрыш х30.">Тройка</label>
             </div>
-
-
 
             <div>
                 <label for="betAmount">Размер ставки:</label>
                 <input type="number" id="betAmount" min="10" step="10" @bind="currentBetAmount" />
             </div>
 
-            <button @onclick="PlaceBet" disabled="@(!CanPlaceBet())">Сделать ставку</button>
+            <button @onclick="PlaceBet" disabled="@(IsButtonDisabled())">Сделать ставку</button>
         </div>
     </div>
     <div class="dice-container">
@@ -91,31 +88,35 @@ else
     private bool isOpponentBet = false;
     private bool isCurrentBet = false;
     private string currentBetType = "Number";
-    private int currentBetAmount = 0;
-    private int selectedNumber = 0;
+    private int currentBetAmount = 10;
+    private int selectedNumber = 1;
     private string gameStatus = "Ожидание ставок...";
     private bool isConnected = false;
     private List<int> dices = [ 1, 1, 1 ];
     private TaskCompletionSource<bool> betPlacedTaskSource;
+    private string gameResult = string.Empty;
+
+    private IDisposable? _placeBetCurrent;
+    private IDisposable? _placeBetOpponent;
+    private IDisposable? _diceRollResults;
+    private IDisposable? _endGameMessage;
+    private IDisposable? _endGameOpponentMessage;
+    private IDisposable? _playerLeft;
+    private IDisposable? _playerJoined;
 
     protected override async Task OnInitializedAsync()
     {   
         var users = await GameService.GetUsersInfo(GameName);
         player = users[0];
         opponent = users[1];
-        Console.WriteLine(player.Name);
-        Console.WriteLine(opponent.Name);
         GameService.CreateConnection("PlaceBetOpponent", (Player opp) => {
-            Console.WriteLine(opp.Name);
-            Console.WriteLine(opp.Name);
             opponent = opp;
             isOpponentBet = true;
             StateHasChanged();
         });
 
-        GameService.CreateConnection("PlaceBetCurrent", (Player pl) =>
+        _placeBetCurrent = GameService.CreateConnection("PlaceBetCurrent", (Player pl) =>
         {
-            Console.WriteLine(pl.Name);
             player = pl;
             isCurrentBet = true;
             gameStatus = "Ставка сделана. Ожидание результатов...";
@@ -123,7 +124,7 @@ else
             betPlacedTaskSource?.SetResult(true);
         });
 
-        GameService.CreateConnection("GameResult", async (Player pl) =>
+        _placeBetOpponent = GameService.CreateConnection("GameResult", async (Player pl) =>
         {   
             var users = await GameService.GetUsersInfo(GameName);
             player = users[0];
@@ -134,7 +135,7 @@ else
             StateHasChanged();
         });
 
-        GameService.CreateConnection("DiceRollResults", (List<int> dice) =>
+        _diceRollResults = GameService.CreateConnection("DiceRollResults", (List<int> dice) =>
         {
             dices[0] = dice[0];
             dices[1] = dice[1];
@@ -142,6 +143,31 @@ else
             StateHasChanged();
         });
 
+        _endGameMessage = GameService.CreateConnection("EndGameMessage", async (string msg, string msgRes) =>
+        {
+            gameResult = msg;
+            await JSRuntime.InvokeVoidAsync("alert", gameResult);
+            await GameService.LeaveGame(GameName, msgRes);
+            NavigationManager.NavigateTo("/");
+        });
+
+        _playerLeft = GameService.CreateConnection("PlayerLeft", async (string msg) =>
+        {
+            await JSRuntime.InvokeVoidAsync("alert", msg);
+            isOpponentBet = false;
+            isCurrentBet = false;
+            dices = [1, 1, 1];
+            StateHasChanged();
+        });
+
+        _playerJoined = GameService.CreateConnection("PlayerJoined", async () =>
+        {
+            var users = await GameService.GetUsersInfo(GameName);
+            player = users[0];
+            opponent = users[1];
+            await JSRuntime.InvokeVoidAsync("alert", "Зашел новый соперник " + opponent.Name);
+            StateHasChanged();
+        });
         await GameService.ConnectToHub();
         isConnected = true;
     }
@@ -162,6 +188,13 @@ else
         }
     }
 
+    private bool IsButtonDisabled(){
+        if(CanPlaceBet()){
+            return isCurrentBet;
+        };
+        return true;
+    }
+
     private bool CanPlaceBet()
     {
         return player.Balance >= currentBetAmount && currentBetAmount >= 10;
@@ -180,22 +213,23 @@ else
                 "Triple" => BetType.Triple,
                 _ => BetType.Number
             };
-            Console.WriteLine("Текущая ставка " + player.Name + ": " + currentBetAmount);
             await GameService.PlaceBet(GameName, betType, selectedNumber, currentBetAmount);
             await betPlacedTaskSource.Task;
-            Console.WriteLine("Соперник поставил " + isOpponentBet);
-            Console.WriteLine("Текущий поставил" + isCurrentBet);
             if(isOpponentBet && isCurrentBet){
                 await GameService.StartGame(GameName);
-                // var users = await GameService.GetUsersInfo(GameName);
-                // player = users[0];
-                // opponent = users[1];
-                // gameStatus = "Ставка сделана. Ожидание результатов...";
-                // gameStatus = "Ожидание ставок...";
-                // isOpponentBet = false;
-                // isCurrentBet = false;
             }
             StateHasChanged();
         }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        _placeBetCurrent?.Dispose();
+        _placeBetOpponent?.Dispose();
+        _diceRollResults?.Dispose();
+        _endGameMessage?.Dispose();
+        _endGameOpponentMessage?.Dispose();
+        _playerLeft?.Dispose();
+        _playerJoined?.Dispose();
+        await GameService.LeaveGame(GameName, "Вы выиграли. Ваш противник вышел.");
     }
 }

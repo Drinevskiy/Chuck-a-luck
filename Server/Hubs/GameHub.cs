@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Server.Logic;
-using Server.Models;
+using Domain.Models;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -20,14 +20,16 @@ namespace Server.Hubs
         {
             if (_gameGroups.ContainsKey(groupName))
             {
-                await Clients.Caller.SendAsync("ErrorMessage", $"Комната с именем '{groupName}' уже существует.");
-                return;
+                throw new HubException($"Комната с именем '{groupName}' уже существует.");
             }
 
             var player = new Player
             {
                 ConnectionId = Context.ConnectionId,
-                Name = playerName
+                Name = playerName,
+                BetType = BetType.Number,
+                BetNumber = 1,
+                BetAmount = 10,
             };
 
             _gameGroups[groupName] = new List<Player> { player };
@@ -39,26 +41,27 @@ namespace Server.Hubs
         {
             if (!_gameGroups.ContainsKey(groupName))
             {
-                await Clients.Caller.SendAsync("ErrorMessage", $"Комната с именем '{groupName}' не найдена.");
-                return;
+                throw new HubException($"Комната с именем '{groupName}' не найдена.");
             }
 
             if (_gameGroups[groupName].Count >= 2)
             {
-                await Clients.Caller.SendAsync("ErrorMessage", $"Комната '{groupName}' уже заполнена.");
-                return;
+                throw new HubException($"Комната '{groupName}' уже заполнена.");
             }
 
             var player = new Player
             {
                 ConnectionId = Context.ConnectionId,
-                Name = playerName
+                Name = playerName,
+                BetType = BetType.Number,
+                BetNumber = 1,
+                BetAmount = 10,
             };
 
             _gameGroups[groupName].Add(player);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-
+            await Clients.OthersInGroup(groupName).SendAsync("PlayerJoined");
 
             if (_gameGroups[groupName].Count == 2)
             {
@@ -122,8 +125,7 @@ namespace Server.Hubs
                         // Отправить информацию о ставке только сопернику
                         await Clients.Client(opponent.ConnectionId).SendAsync("PlaceBetOpponent", player);
                     }
-                        // Отправить информацию о ставке только сопернику
-                        await Clients.Caller.SendAsync("PlaceBetCurrent", player);
+                    await Clients.Caller.SendAsync("PlaceBetCurrent", player);
                 }
             }
         }
@@ -136,27 +138,19 @@ namespace Server.Hubs
                 var diceRolls = result.DiceRolls; // Assuming DiceRolls is a suitable type for serialization
                 await Clients.Group(groupName).SendAsync("DiceRollResults", diceRolls);
 
-
-                var removedPlayers = new List<Player>();
                 foreach (var player in players)
                 {
                     if (result.PlayerResults.TryGetValue(player.ConnectionId, out var payout))
                     {
-                        player.BetType = BetType.Number;
-                        player.BetAmount = 10;
-                        player.BetNumber = 1;
-
                         if (player.Balance >= 500)
                         {
                             await Clients.Client(player.ConnectionId).SendAsync("GameResult", player);
-                            await Clients.Client(player.ConnectionId).SendAsync("ErrorMessage", "Вы выиграли игру, ваш баланс: " + player.Balance);
-                            removedPlayers.Add(player);
+                            await Clients.Client(player.ConnectionId).SendAsync("EndGameMessage", "Вы выиграли игру, ваш баланс: " + player.Balance, "Вы проиграли игру, ваш соперник набрал: " + player.Balance);
                         }
                         else if (player.Balance <= 0)
                         {
                             await Clients.Client(player.ConnectionId).SendAsync("GameResult", player);
-                            await Clients.Client(player.ConnectionId).SendAsync("ErrorMessage", "Вы проиграли игру, ваш баланс: 0.");
-                            removedPlayers.Add(player);
+                            await Clients.Client(player.ConnectionId).SendAsync("EndGameMessage", "Вы проиграли игру, ваш баланс: 0.", "Вы выиграли игру, баланс вашего соперника: 0.");
                         }
                         else
                         {
@@ -164,15 +158,28 @@ namespace Server.Hubs
                         }
                     }
                 }
+            }
+        }
 
-                foreach (var player in removedPlayers)
+        public async Task LeaveGame(string groupName, string message)
+        {
+            // Проверяем, существует ли группа
+            if (_gameGroups.TryGetValue(groupName, out var players))
+            {
+                // Находим игрока по текущему ConnectionId
+                var player = players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+
+                if (player != null)
                 {
+                    // Удаляем игрока из группы
                     players.Remove(player);
-                }
-
-                if (!players.Any())
-                {
-                    _gameGroups.TryRemove(groupName, out _);
+                    // Уведомляем остальных участников группы о том, что игрок вышел
+                    await Clients.OthersInGroup(groupName).SendAsync("PlayerLeft", message);
+                    // Если группа пуста, удаляем её
+                    if (!players.Any())
+                    {
+                        _gameGroups.TryRemove(groupName, out _);
+                    }
                 }
             }
         }

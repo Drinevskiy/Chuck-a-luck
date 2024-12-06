@@ -26,8 +26,6 @@
 
 	protected async override Task OnInitializedAsync()
 	{
-		GameService.CreateConnection("Receive", () => { });
-
 		await GameService.ConnectToHub();
 	}
 

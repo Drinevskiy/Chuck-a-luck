@@ -1,4 +1,4 @@
-﻿using Server.Models;
+﻿using Domain.Models;
 
 namespace Server.Logic
 {
@@ -76,7 +76,6 @@ namespace Server.Logic
                 // Сохранить результат для передачи игроку
                 playerResults[player.ConnectionId] = payout;
             }
-
             // 4. Вернуть результат игры
             return new GameResult
             {

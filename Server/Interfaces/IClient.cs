@@ -1,4 +1,4 @@
-﻿using Server.Models;
+﻿using Domain.Models;
 
 namespace Server.Interfaces
 {

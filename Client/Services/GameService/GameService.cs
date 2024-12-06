@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.JSInterop;
-//using Newtonsoft.Json.Linq;
 
 
 namespace Client.Services
@@ -53,12 +52,15 @@ namespace Client.Services
             return _connection.On(method, handler);
         }
 
-        public IDisposable CreateConnection(string method, Action<int, int, bool> handler)
+        public IDisposable CreateConnection(string method, Action<string, string> handler)
         {
             return _connection.On(method, handler);
         }
 
-        
+        public IDisposable CreateConnection(string method, Action<int, int, bool> handler)
+        {
+            return _connection.On(method, handler);
+        }
 
         public void RemoveConnections(string method)
         {
@@ -75,7 +77,6 @@ namespace Client.Services
             catch (HubException ex)
             {
                 await _jsRuntime.InvokeVoidAsync("alert", ex.Message);
-
                 Console.WriteLine(ex.Message);
                 return false;
             }
@@ -91,7 +92,6 @@ namespace Client.Services
             catch (HubException ex)
             {
                 await _jsRuntime.InvokeVoidAsync("alert", ex.Message);
-
                 Console.WriteLine(ex.Message);
                 return false;
             }
@@ -139,99 +139,19 @@ namespace Client.Services
             }
         }
 
-        public async Task<string> GetOpponentField(string game, string username)
+        public async Task<bool> LeaveGame(string gamename, string message)
         {
             try
             {
-                var result = await _connection.InvokeAsync<string>("GetOpponentField", game, username);
-                return result;
+                await _connection.InvokeAsync("LeaveGame", gamename, message);
+                return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return "";
+                return false;
             }
         }
 
-        public async Task Move(string game, string username, int x, int y, bool shot)
-        {
-            try
-            {
-                await _connection.InvokeAsync("Move", game, username, x, y, shot);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }
-        }
-
-        
-
-        public async Task AddContent(string username, string content)
-        {
-            try
-            {
-                await _connection.InvokeAsync("AddContent", username, content);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }
-        }
-
-        public async Task<string> GetMove(string game)
-        {
-            try
-            {
-                var result = await _connection.InvokeAsync<string>("GetMove", game);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return "";
-            }
-        }
-
-        public async Task AddMove(string game, string username)
-        {
-            try
-            {
-                await _connection.InvokeAsync("AddMove", game, username);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }
-        }
-
-        public async Task EndGame(string game, string username)
-        {
-            try
-            {
-                await _connection.InvokeAsync("EndGame", game, username);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }
-        }
-
-        public async Task DeleteGame(string game)
-        {
-            try
-            {
-                await _connection.InvokeAsync("DeleteGame", game);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return;
-            }
-        }
     }
 }
