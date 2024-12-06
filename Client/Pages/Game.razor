@@ -89,6 +89,7 @@ else
     private HubConnection? hubConnection;
     private Player player = null;
     private Player opponent = null;
+    private bool isOpponentBet = false;
     private string currentBetType = "Number";
     private int currentBetAmount = 0;
     private int selectedNumber = 0;
@@ -102,9 +103,11 @@ else
         player = users[0];
         opponent = users[1];
         GameService.CreateConnection("PlaceBet", (Player opp) => {
+            Console.WriteLine(Username + opp);
             if (opp.Name != player.Name)
             {
                 opponent = opp;
+                isOpponentBet = true;
             }
             gameStatus = "Ожидание ставок...";
             StateHasChanged();
@@ -118,7 +121,9 @@ else
 
         GameService.CreateConnection("DiceRollResults", (List<int> dice) =>
         {
-            dices = dice;
+            dices[0] = dice[0];
+            dices[1] = dice[1];
+            dices[2] = dice[2];
             StateHasChanged();
         });
 
@@ -171,8 +176,11 @@ else
                 betType = BetType.Triple;
             }
             await GameService.PlaceBet(GameName, betType, selectedNumber, currentBetAmount);
-
             gameStatus = "Ставка сделана. Ожидание результатов...";
+            if(isOpponentBet){
+                await GameService.StartGame(GameName);
+                isOpponentBet = false;
+            }
             StateHasChanged();
         }
     }

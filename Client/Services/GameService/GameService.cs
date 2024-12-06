@@ -125,13 +125,11 @@ namespace Client.Services
         }
 
 
-        public async Task<bool> StartGame(string game, string username, string field)
+        public async Task<bool> StartGame(string gamename)
         {
             try
             {
-                await Console.Out.WriteLineAsync($"{game} {username} {field} field from StartGame in gameService");
-
-                await _connection.InvokeAsync("StartGame", game, username, field);
+                await _connection.InvokeAsync("StartGame", gamename);
                 return true;
             }
             catch (Exception ex)
