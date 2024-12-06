@@ -70,7 +70,20 @@ namespace Server.Hubs
         {
             if (_gameGroups.TryGetValue(groupName, out var players))
             {
-                return Task.FromResult(players);
+                var caller = players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+
+                if (caller != null)
+                {
+                    var opponent = players.FirstOrDefault(p => p.ConnectionId != Context.ConnectionId);
+                    var orderedPlayers = new List<Player> { caller };
+
+                    if (opponent != null)
+                    {
+                        orderedPlayers.Add(opponent);
+                    }
+
+                    return Task.FromResult(orderedPlayers);
+                }
             }
 
             return Task.FromResult(new List<Player>());
