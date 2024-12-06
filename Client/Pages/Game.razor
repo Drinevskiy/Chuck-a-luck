@@ -102,22 +102,24 @@ else
         var users = await GameService.GetUsersInfo(GameName);
         player = users[0];
         opponent = users[1];
+        Console.WriteLine(player.Name);
+        Console.WriteLine(opponent.Name);
         GameService.CreateConnection("PlaceBet", (Player opp) => {
             Console.WriteLine(Username + opp);
-            if (opp.Name != player.Name)
-            {
-                opponent = opp;
-                isOpponentBet = true;
-            }
+            opponent = opp;
+            isOpponentBet = true;
             gameStatus = "Ожидание ставок...";
             StateHasChanged();
         });
 
-        // GameService.CreateConnection("ChangeGameStatus", (status) =>
-        // {
-        //     gameStatus = status;
-        //     StateHasChanged();
-        // });
+        GameService.CreateConnection("GameResult", async () =>
+        {   
+            var users = await GameService.GetUsersInfo(GameName);
+            player = users[0];
+            opponent = users[1];
+            isOpponentBet = false;
+            StateHasChanged();
+        });
 
         GameService.CreateConnection("DiceRollResults", (List<int> dice) =>
         {
@@ -179,6 +181,10 @@ else
             gameStatus = "Ставка сделана. Ожидание результатов...";
             if(isOpponentBet){
                 await GameService.StartGame(GameName);
+                // var users = await GameService.GetUsersInfo(GameName);
+                // player = users[0];
+                // opponent = users[1];
+                // gameStatus = "Ставка сделана. Ожидание результатов...";
                 isOpponentBet = false;
             }
             StateHasChanged();
