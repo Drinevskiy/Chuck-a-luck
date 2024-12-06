@@ -75,3 +75,11 @@ main {
         padding-right: 1.5rem !important;
     }
 }
+
+img {
+    position: absolute;
+    width: 100%;
+/*    transform: scale(1.06);*/
+    z-index: -1; /* Помещает изображение позади других элементов */
+}
+

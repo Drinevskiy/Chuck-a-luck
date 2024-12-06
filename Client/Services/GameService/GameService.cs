@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Domain.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.JSInterop;
 //using Newtonsoft.Json.Linq;
@@ -127,17 +128,17 @@ namespace Client.Services
             }
         }
 
-        public async Task<string> GetContent(string username)
+        public async Task<Player> GetUserInfo(string username)
         {
             try
             {
-                var result = await _connection.InvokeAsync<string>("GetContent", username);
+                var result = await _connection.InvokeAsync<Player>("GetContent", username);
                 return result;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return "";
+                return null;
             }
         }
 

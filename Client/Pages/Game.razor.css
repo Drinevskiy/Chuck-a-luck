@@ -1,0 +1,90 @@
+﻿h3 {
+    font-family: 'Georgia', serif;
+    font-size: 60px;
+    text-align: center;
+    color: #fff; /* Цвет текста */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Тень для текста */
+    margin-bottom: 40px; /* Отступ снизу */
+}
+
+.my-row {
+    display: flex;
+    justify-content: center; /* Center the row */
+    gap: 5%;
+    margin-bottom: 40px;
+/*    align-items: flex-start;  Align items to the top */
+}
+
+.game-container{
+    width: 30%;
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.game-container > p{
+   text-align:center;
+}
+
+
+.game-container > div:first-child {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 40px;
+}
+
+.betting-section {
+    display: flex;
+    flex-direction:column;
+    justify-content: space-around;
+    width: 30%;
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.betting-section h4{
+    text-align:center;
+    margin-bottom: 10px;
+}
+
+.betting-section div {
+    margin-bottom: 10px;
+}
+
+.dice-container {
+    width: 65%;
+    margin: 0 auto;
+    background-color: white;
+/*    height:150px;*/
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.dice {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    background-color: #f0f0f0;
+    border: 2px solid #333;
+    border-radius: 5px;
+    line-height: 50px;
+    font-size: 24px;
+    margin: 0 10px;
+    animation: rollAnimation 1s forwards;
+    opacity: 0;
+}
+
+@keyframes rollAnimation {
+    0% {
+        transform: translateY(-20px);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
