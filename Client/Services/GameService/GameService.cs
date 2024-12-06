@@ -38,6 +38,16 @@ namespace Client.Services
             return _connection.On(method, handler);
         }
 
+        public IDisposable CreateConnection(string method, Action<Player> handler)
+        {
+            return _connection.On<Player>(method, handler);
+        }
+
+        public IDisposable CreateConnection(string method, Action<List<int>> handler)
+        {
+            return _connection.On<List<int>>(method, handler);
+        }
+
         public IDisposable CreateConnection(string method, Action<string> handler)
         {
             return _connection.On(method, handler);
@@ -47,6 +57,8 @@ namespace Client.Services
         {
             return _connection.On(method, handler);
         }
+
+        
 
         public void RemoveConnections(string method)
         {
@@ -84,6 +96,34 @@ namespace Client.Services
                 return false;
             }
         }
+
+        public async Task<List<Player>> GetUsersInfo(string gamename)
+        {
+            try
+            {
+                var result = await _connection.InvokeAsync<List<Player>>("GetPlayersInGroup", gamename);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return null;
+            }
+        }
+        public async Task<bool> PlaceBet(string game, BetType currentBetType, int selectedNumber, int currentBetAmount)
+        {
+            try
+            {
+                var result = await _connection.InvokeAsync<string>("PlaceBet", game, currentBetType, selectedNumber, currentBetAmount);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return false;
+            }
+        }
+
 
         public async Task<bool> StartGame(string game, string username, string field)
         {
@@ -128,19 +168,7 @@ namespace Client.Services
             }
         }
 
-        public async Task<Player> GetUserInfo(string username)
-        {
-            try
-            {
-                var result = await _connection.InvokeAsync<Player>("GetContent", username);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                return null;
-            }
-        }
+        
 
         public async Task AddContent(string username, string content)
         {

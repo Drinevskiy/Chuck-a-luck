@@ -34,7 +34,7 @@
 
 	private async Task Create()
 	{
-		bool result = await GameService.JoinGame(GameName, Username);
+		bool result = await GameService.CreateGame(GameName, Username);
 
 		if (result)
 		{

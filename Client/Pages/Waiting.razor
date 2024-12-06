@@ -27,7 +27,6 @@
 	[Parameter]
 	public string Username { get; set; } = "";
 
-	private IDisposable? _notify;
 	private IDisposable? _start;
 
 	protected async override Task OnInitializedAsync()
@@ -43,7 +42,6 @@
 
 	public void Dispose()
 	{
-		_notify?.Dispose();
 		_start?.Dispose();
 	}
 }

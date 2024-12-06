@@ -66,10 +66,10 @@
             <button @onclick="PlaceBet" disabled="@(!CanPlaceBet())">Сделать ставку</button>
         </div>
     </div>
-    <div class="dice-container" @onclick="RollDice">
-        <div class="dice" style="animation-delay: 0s;">@dice1</div>
-        <div class="dice" style="animation-delay: 0.1s;">@dice2</div>
-        <div class="dice" style="animation-delay: 0.2s;">@dice3</div>
+    <div class="dice-container">
+        <div class="dice" style="animation-delay: 0s;">@dices[0]</div>
+        <div class="dice" style="animation-delay: 0.1s;">@dices[1]</div>
+        <div class="dice" style="animation-delay: 0.2s;">@dices[2]</div>
     </div>
 }
 else
@@ -89,35 +89,42 @@ else
     private HubConnection? hubConnection;
     private Player player = null;
     private Player opponent = null;
-    private int playerBalance = 100;
-    private int opponentBalance = 100;
     private string currentBetType = "Number";
-    private string opponentCurrentBetType = string.Empty;
     private int currentBetAmount = 0;
-    private int opponentBetAmount = 0;
     private int selectedNumber = 0;
     private string gameStatus = "Ожидание ставок...";
     private bool isConnected = false;
-    private int dice1 = 1, dice2 = 1, dice3 = 1;
+    private List<int> dices = [ 1, 1, 1 ];
 
     protected override async Task OnInitializedAsync()
-    {
-        await GameService.GetUserInfo(Username);
-        hubConnection.On<int, string, int>("ReceiveOpponentBet", (balance, betType, betAmount) =>
-        {
-            opponentBalance = balance;
-            opponentCurrentBetType = betType;
-            opponentBetAmount = betAmount;
+    {   
+        var users = await GameService.GetUsersInfo(Username);
+        player = users[0];
+        opponent = users[1];
+        GameService.CreateConnection("PlaceBet", (Player opp) => {
+            if (opp.Name != player.Name)
+            {
+                opponent = opp;
+            }
+            gameStatus = "Ожидание ставок...";
             StateHasChanged();
         });
 
-        hubConnection.On<string>("ReceiveGameStatus", (status) =>
+        // GameService.CreateConnection("ChangeGameStatus", (status) =>
+        // {
+        //     gameStatus = status;
+        //     StateHasChanged();
+        // });
+
+        GameService.CreateConnection("DiceRollResults", (List<int> dice) =>
         {
-            gameStatus = status;
+            dices = dice;
             StateHasChanged();
         });
 
-        await hubConnection.StartAsync();
+
+
+        await GameService.ConnectToHub();
         isConnected = true;
     }
 
@@ -139,30 +146,35 @@ else
 
     private bool CanPlaceBet()
     {
-        return playerBalance >= currentBetAmount && currentBetAmount >= 10;
+        return player.Balance >= currentBetAmount && currentBetAmount >= 10;
     }
 
     private async Task PlaceBet()
     {
         if (CanPlaceBet())
         {
-            playerBalance -= currentBetAmount;
-
-            // Отправляем данные о ставке на сервер
-            await hubConnection!.SendAsync("PlaceBet", playerBalance, currentBetType, currentBetAmount, selectedNumber);
+            var betType = BetType.Number;
+            if (currentBetType == "Number")
+            {
+                betType = BetType.Number;
+            }
+            else if (currentBetType == "Small")
+            {
+                betType = BetType.Small;
+            }
+            else if (currentBetType == "Big")
+            {
+                betType = BetType.Big;
+            }
+            else if (currentBetType == "Triple")
+            {
+                betType = BetType.Triple;
+            }
+            await GameService.PlaceBet(GameName, betType, selectedNumber, currentBetAmount);
 
             gameStatus = "Ставка сделана. Ожидание результатов...";
             StateHasChanged();
         }
-    }
-
-    private void RollDice()
-    {
-        Random rand = new Random();
-        dice1 = rand.Next(1, 7);
-        dice2 = rand.Next(1, 7);
-        dice3 = rand.Next(1, 7);
-        StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()
