@@ -120,8 +120,10 @@ namespace Server.Hubs
                     if (opponent != null)
                     {
                         // Отправить информацию о ставке только сопернику
-                        await Clients.Client(opponent.ConnectionId).SendAsync("PlaceBet", player);
+                        await Clients.Client(opponent.ConnectionId).SendAsync("PlaceBetOpponent", player);
                     }
+                        // Отправить информацию о ставке только сопернику
+                        await Clients.Caller.SendAsync("PlaceBetCurrent", player);
                 }
             }
         }

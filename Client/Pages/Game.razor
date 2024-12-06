@@ -45,15 +45,15 @@
             </div>
             <div>
                 <input type="radio" id="small" name="betType" value="Small" @onchange="() => SelectBet('S')" />
-                <label for="small">Малые</label>
+                <label for="small" title="Сумма костей от 4 до 10 включительно - выигрыш х1.">Малые</label>
             </div>
             <div>
                 <input type="radio" id="big" name="betType" value="Big" @onchange="() => SelectBet('B')" />
-                <label for="big">Большие</label>
+                <label for="big" title="Сумма костей от 11 до 17 включительно - выигрыш х1.">Большие</label>
             </div>
             <div>
                 <input type="radio" id="triple" name="betType" value="Triple" @onchange="() => SelectBet('T')" />
-                <label for="triple">Тройка</label>
+                <label for="triple" title="Три одинаковые кости - выигрыш х1.">Тройка</label>
             </div>
 
 
@@ -86,10 +86,10 @@ else
     [Parameter]
     public string Username { get; set; } = "";
 
-    private HubConnection? hubConnection;
     private Player player = null;
     private Player opponent = null;
     private bool isOpponentBet = false;
+    private bool isCurrentBet = false;
     private string currentBetType = "Number";
     private int currentBetAmount = 0;
     private int selectedNumber = 0;
@@ -104,11 +104,19 @@ else
         opponent = users[1];
         Console.WriteLine(player.Name);
         Console.WriteLine(opponent.Name);
-        GameService.CreateConnection("PlaceBet", (Player opp) => {
-            Console.WriteLine(Username + opp);
+        GameService.CreateConnection("PlaceBetOpponent", (Player opp) => {
+            Console.WriteLine(opp.Name);
             opponent = opp;
             isOpponentBet = true;
-            gameStatus = "Ожидание ставок...";
+            StateHasChanged();
+        });
+
+        GameService.CreateConnection("PlaceBetCurrent", (Player pl) =>
+        {
+            Console.WriteLine(pl.Name);
+            player = pl;
+            isCurrentBet = true;
+            gameStatus = "Ставка сделана. Ожидание результатов...";
             StateHasChanged();
         });
 
@@ -128,8 +136,6 @@ else
             dices[2] = dice[2];
             StateHasChanged();
         });
-
-
 
         await GameService.ConnectToHub();
         isConnected = true;
@@ -177,25 +183,19 @@ else
             {
                 betType = BetType.Triple;
             }
+            Console.WriteLine("Текущая ставка " + player.Name + ": " + currentBetAmount);
             await GameService.PlaceBet(GameName, betType, selectedNumber, currentBetAmount);
-            gameStatus = "Ставка сделана. Ожидание результатов...";
-            if(isOpponentBet){
+            if(isOpponentBet && isCurrentBet){
                 await GameService.StartGame(GameName);
                 // var users = await GameService.GetUsersInfo(GameName);
                 // player = users[0];
                 // opponent = users[1];
                 // gameStatus = "Ставка сделана. Ожидание результатов...";
+                gameStatus = "Ожидание ставок...";
                 isOpponentBet = false;
+                isCurrentBet = false;
             }
             StateHasChanged();
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
         }
     }
 }
